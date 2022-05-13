@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<Server version="8">
+	<Name>OvenMediaEngine</Name>
+	<!-- Host type (origin/edge) -->
+	<Type>origin</Type>
+	<!-- Specify IP address to bind (* means all IPs) -->
+	<IP>*</IP>
+	<PrivacyProtection>false</PrivacyProtection>
+	<!-- 
+	To get the public IP address(mapped address of stun) of the local server. 
+	This is useful when OME cannot obtain a public IP from an interface, such as AWS or docker environment. 
+	If this is successful, you can use ${PublicIP} in your settings.
+	-->
+	<StunServer>stun.l.google.com:19302</StunServer>
+
+	<!-- Settings for the ports to bind -->
+	<Bind>
+		<Providers>
+			<RTMP>
+				<Port>${env:OME_RTMP_PROV_PORT:1935}</Port>
+				<WorkerCount>1</WorkerCount>
+			</RTMP>
+			<SRT>
+				<Port>${env:OME_SRT_PROV_PORT:9999}</Port>
+				<WorkerCount>1</WorkerCount>
+			</SRT>
+			<WebRTC>
+				<Signalling>
+					<Port>${env:OME_SIGNALLING_PORT:3333}</Port>
+					<WorkerCount>1</WorkerCount>
+				</Signalling>
+				<IceCandidates>
+					<TcpRelay>${env:OME_TCP_RELAY_ADDRESS:*:3478}</TcpRelay>
+					<TcpForce>true</TcpForce>
+					<TcpRelayWorkerCount>1</TcpRelayWorkerCount>
+					<IceCandidate>${env:OME_ICE_CANDIDATES:*:10006/udp}</IceCandidate>
+				</IceCandidates>
+			</WebRTC>
+		</Providers>
+
+		<Publishers>
+			<!-- The OVT is protocol for ORIGIN-EDGE -->
+			<OVT>
+				<Port>${env:OME_ORIGIN_PORT:9000}</Port>
+				<WorkerCount>1</WorkerCount>
+			</OVT>
+			<HLS>
+				<Port>${env:OME_HLS_STREAM_PORT:8080}</Port>
+				<WorkerCount>1</WorkerCount>
+			</HLS>
+			<DASH>
+				<Port>${env:OME_DASH_STREAM_PORT:8080}</Port>
+				<WorkerCount>1</WorkerCount>
+			</DASH>
+			<WebRTC>
+				<Signalling>
+					<Port>${env:OME_SIGNALLING_PORT:3333}</Port>
+					<WorkerCount>1</WorkerCount>
+				</Signalling>
+				<IceCandidates>
+					<TcpRelay>${env:OME_TCP_RELAY_ADDRESS:*:3478}</TcpRelay>
+					<TcpForce>true</TcpForce>
+					<TcpRelayWorkerCount>1</TcpRelayWorkerCount>
+					<IceCandidate>${env:OME_ICE_CANDIDATES:*:10006/udp}</IceCandidate>
+				</IceCandidates>
+			</WebRTC>
+		</Publishers>
+	        <Managers>
+	                <API>
+        	                <Port>8081</Port>
+                	</API>
+        	</Managers>
+	</Bind>
+	<Managers>
+		<Host>
+			<Names>
+				<Name>*</Name>
+			</Names>
+		</Host>
+                <API>
+                        <AccessToken>ome-access-token</AccessToken>
+                </API>
+	</Managers>
+
+	<VirtualHosts>
+		<!--
+			You can include multiple XML files by doing the following:
+			<VirtualHost include="sites-enabled/*.xml" />
+		-->
+		<VirtualHost include="VHost*.xml" />
+		<VirtualHost>
+			<Name>default</Name>
+			<!--Distribution is a value that can be used when grouping the same vhost distributed across multiple servers. This value is output to the events log, so you can use it to aggregate statistics. -->
+			<Distribution>ovenmediaengine.com</Distribution>
+			
+			<!-- Settings for multi ip/domain and TLS -->
+			<Host>
+				<Names>
+					<Name>*</Name>
+				</Names>
+			</Host>
+
+			<!-- Settings for applications -->
+			<Applications>
+				<Application>
+					<Name>app</Name>
+					<!-- Application type (live/vod) -->
+					<Type>live</Type>
+					<OutputProfiles>
+						<OutputProfile>
+							<Name>bypass_stream</Name>
+							<OutputStreamName>${OriginStreamName}</OutputStreamName>
+							<Encodes>
+								<Audio>
+									<Bypass>true</Bypass>
+								</Audio>
+								<Video>
+									<Bypass>true</Bypass>
+								</Video>
+								<Audio>
+									<Codec>opus</Codec>
+									<Bitrate>128000</Bitrate>
+									<Samplerate>48000</Samplerate>
+									<Channel>2</Channel>
+								</Audio>
+							</Encodes>
+						</OutputProfile>
+					</OutputProfiles>
+					<Providers>
+						<WebRTC />
+						<RTMP />
+						<SRT />
+					</Providers>
+					<Publishers>
+						<AppWorkerCount>1</AppWorkerCount>
+						<StreamWorkerCount>8</StreamWorkerCount>
+						<OVT />
+						<WebRTC>
+							<Timeout>30000</Timeout>
+							<Rtx>false</Rtx>
+							<Ulpfec>false</Ulpfec>
+							<JitterBuffer>false</JitterBuffer>
+						</WebRTC>
+						<HLS>
+							<SegmentDuration>5</SegmentDuration>
+							<SegmentCount>3</SegmentCount>
+							<CrossDomains>
+								<Url>*</Url>
+							</CrossDomains>
+						</HLS>
+						<DASH>
+							<SegmentDuration>5</SegmentDuration>
+							<SegmentCount>3</SegmentCount>
+							<CrossDomains>
+								<Url>*</Url>
+							</CrossDomains>
+							<UTCTiming />
+						</DASH>
+						<LLDASH>
+							<SegmentDuration>5</SegmentDuration>
+							<CrossDomains>
+								<Url>*</Url>
+							</CrossDomains>
+							<UTCTiming />
+						</LLDASH>
+						<FILE>
+							<RootPath>/recording</RootPath>
+							<FilePath>/${VirtualHost}/${Application}/${Id}.ts</FilePath>
+							<InfoPath>/${VirtualHost}/${Application}/${Stream}.xml</InfoPath>
+						</FILE>
+					</Publishers>
+				</Application>
+			</Applications>
+		</VirtualHost>
+	</VirtualHosts>
+</Server>
